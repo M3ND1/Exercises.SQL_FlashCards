@@ -3,7 +3,6 @@
 class Program
 {
     public static string connection_string = @"Data Source=DESKTOP-2S1UIGJ;Initial Catalog=FlashCards;Integrated Security=True;Connect Timeout=30;Encrypt=False;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False";
-
     static void Main(string[] args)
     {
         MainMenu();
@@ -14,10 +13,12 @@ class Program
         while (closeApp == false)
         {
             Console.Clear();
-            Console.WriteLine("0 - exit");
-            Console.WriteLine("1 - Get ");
+            Console.WriteLine("0 - Exit from program");
+            Console.WriteLine("1 - See Both Tables");
             Console.WriteLine("2 - Insert");
             Console.WriteLine("3 - Update");
+            Console.WriteLine("4 - Delete");
+            Console.WriteLine("5 - See table by Name");
             int choose = Convert.ToInt32(Console.ReadLine());
             switch (choose)
             {
@@ -33,6 +34,14 @@ class Program
                 case 3:
                     Update();
                     break;
+                case 4:
+                    Delete(); //Delete Id decrementation ex. From 2 to 1 --> having 1-10 deleteing 5 and 1-9
+                    break;
+                case 5:
+                    string sol = Console.ReadLine();
+                    GetTableByName(sol);
+                    System.Threading.Thread.Sleep(3000);
+                    break;
                 default:
                     Console.WriteLine("Choose from 0 to n");
                     break;
@@ -46,31 +55,41 @@ class Program
         SqlDataReader reader = null;
 
         SqlCommand command = conn.CreateCommand();
-        //command.CommandText = $"SELECT FrontCards.Name AS FrontName, BackCards.Name AS BackName FROM FrontCards JOIN BackCards ON FrontCards.FrontId = BackCards.FrontId";
-        command.CommandText = $"SELECT * FROM FrontCards";
+        command.CommandText = $"SELECT FrontCards.Name AS FrontName, BackCards.Name AS BackName FROM FrontCards JOIN BackCards ON FrontCards.FrontId = BackCards.FrontId";
         reader = command.ExecuteReader();
-
         while (reader.Read())
-        {
-            //Console.WriteLine(String.Format("{0} {1}", reader["FrontName"].ToString(), reader["BackName"].ToString()));
-            Console.WriteLine(String.Format("{0} - {1}",reader["FrontId"].ToString(), reader["Name"].ToString()));
+        {//maybe select with both tables with Id and name? more readable
+            Console.WriteLine(String.Format("{0} {1}", reader["FrontName"].ToString(), reader["BackName"].ToString()));
         }
-        //Console.;
         reader.Close();
         conn.Close();
         System.Threading.Thread.Sleep(2000);
     }
-
     private static void Insert()
-    {
+    { //insert should be different, add always only to FrontCards and provide translation to backcards
+        //then check compatibility
         Console.WriteLine("Type where do you wanna insert your data FrontCards or BackCards");
-        //1 or 2 to choose between them user will not have way to mistype smth
-        string table_name = Console.ReadLine();
-        //Get(column_names);
-        Console.WriteLine("Type what you want to add");
-        //Get(card_names);
+        Console.WriteLine("Provide number to choose table");
+        Console.WriteLine("1 - FrontCards");
+        Console.WriteLine("2 - BackCards");
+        int table_choose = GetNumber();
+        string table_name = "";
+        if (table_choose == 1) { table_name = "FrontCards"; }
+        else if (table_choose == 2) { table_name = "BackCards"; }
+        if (table_choose != 1 && table_choose != 2)
+        {
+            bool flag = false;
+            Console.WriteLine("Provide number 1 or 2");
+            while (!flag)
+            {
+                table_choose = GetNumber();
+                if (table_choose == 1) { table_name = "FrontCards"; flag = true; }
+                else if (table_choose == 2) { table_name = "BackCards"; flag = true; }
+                else Console.WriteLine("Provide number 1 or 2");
+            }
+        }
+        Console.WriteLine($"Type what Name you want to add to {table_name} table");
         string card_value = Console.ReadLine();
-        //Conn
         SqlConnection conn = new SqlConnection(connection_string);
         conn.Open();
         SqlCommand command = conn.CreateCommand();
@@ -78,16 +97,28 @@ class Program
         command.ExecuteNonQuery();
         conn.Close();
     }
-
     private static void Update()
     {
         Console.Clear();
-        Console.WriteLine("Type what table You want to update: FrontCards or BackCards");
-        //GetTable()
-        string table_name = Console.ReadLine();
-        Get();// Get(table_name);
-        Console.WriteLine("Choose Id to edit");
-        int table_id = Convert.ToInt32(Console.ReadLine());
+        //I can do here validation for exisitng table names and try catch it
+        //SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE'
+        //profanation of programming here
+        string table_name;
+        while (true)
+        {
+            Console.WriteLine("Type what table You want to update: FrontCards or BackCards");
+            table_name = Console.ReadLine();
+            if (table_name == "FrontCards" || table_name == "BackCards")
+            {
+                break;
+            } else
+            {
+                Console.Write("Type proper tablename.");
+            }
+        }
+        GetTableByName(table_name);
+        Console.WriteLine("Now choose Id to edit.");
+        int table_id = GetNumber(); //validation if db have n rows etc. 
         Console.Clear();
         Console.WriteLine("Type new card name to replace");
         string value = Console.ReadLine();
@@ -98,11 +129,91 @@ class Program
         command.ExecuteNonQuery();
         conn.Close();
     }
-    static string GetColumnName()
+    private static void Delete()
     {
         Console.Clear();
-        string sol = Console.ReadLine();
-        //validation later
+        Console.WriteLine("Provide number to choose table");
+        Console.WriteLine("1 - FrontCards");
+        Console.WriteLine("2 - BackCards");
+        int table_choose = GetNumber();
+        string table_name="";
+        if(table_choose != 1 || table_choose != 2)
+        {
+            bool flag = false;
+            Console.WriteLine("Provide number 1 or 2");
+            while(!flag)
+            {
+                table_choose = GetNumber();
+                if(table_choose == 1) { table_name = "FrontCards"; flag = true; }
+                else if(table_choose == 2) { table_name = "BackCards"; flag = true;}
+                else Console.WriteLine("Provide number 1 or 2");
+            }
+        }
+        GetTableByName(table_name);
+        Console.WriteLine("Choose name that you wanna delete: ");
+        string name_choose = Console.ReadLine();
+        Console.Clear();
+        SqlConnection conn = new SqlConnection(connection_string);
+        conn.Open();
+        SqlCommand command = conn.CreateCommand();
+        command.CommandText = $"DELETE FROM {table_name} WHERE Name = '{name_choose}'";
+        command.ExecuteNonQuery();
+        conn.Close();
+    }
+    static string GetString()
+    {
+        bool flag = false;
+        string sol = "";
+        while(!flag)
+        {
+            try
+            {
+                sol = Console.ReadLine();
+                flag = true;
+            }
+            catch(FormatException) 
+            {
+                Console.WriteLine("Provide text.");
+            }
+        }
         return sol;   
     }
- }
+    static int GetNumber()
+    {
+        bool flag = false;
+        int sol=0;
+        while(!flag)
+        {
+            try
+            {
+                sol = Convert.ToInt32(Console.ReadLine());
+                flag = true;
+            }
+            catch (FormatException)
+            {
+                Console.WriteLine("Provide number.");
+            }
+        }
+        return sol;
+    }
+    static void GetTableByName(string table)
+    {
+        Console.Clear();
+        SqlConnection conn = new SqlConnection(connection_string);
+        SqlDataReader reader = null;
+        conn.Open();
+        SqlCommand id_command = conn.CreateCommand();
+        id_command.CommandText = $"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{table}' AND COLUMN_NAME LIKE '%Id%'";
+        string column_id = (string)id_command.ExecuteScalar(); //FrontId or BackId
+        //========
+        SqlCommand command = conn.CreateCommand();
+        command.CommandText = $"SELECT {column_id}, Name FROM {table}";
+        reader = command.ExecuteReader();
+        while(reader.Read())
+        {
+            Console.WriteLine(String.Format("Id: {0} Name: {1}", reader[column_id].ToString(), reader["Name"].ToString()));
+        }
+        reader.Close();
+        conn.Close();
+    }
+}
