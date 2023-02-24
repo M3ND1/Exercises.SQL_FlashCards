@@ -15,11 +15,11 @@ class Program
             Console.Clear();
             Console.WriteLine("0 - Exit from program");
             Console.WriteLine("1 - See Both Tables");
-            Console.WriteLine("2 - Insert");
+            Console.WriteLine("2 - Insert both cards");
             Console.WriteLine("3 - Update");
             Console.WriteLine("4 - Delete");
             Console.WriteLine("5 - See table by Name");
-            int choose = Convert.ToInt32(Console.ReadLine());
+            int choose = GetNumber();
             switch (choose)
             {
                 case 0:
@@ -66,34 +66,20 @@ class Program
         System.Threading.Thread.Sleep(2000);
     }
     private static void Insert()
-    { //insert should be different, add always only to FrontCards and provide translation to backcards
-        //then check compatibility
-        Console.WriteLine("Type where do you wanna insert your data FrontCards or BackCards");
-        Console.WriteLine("Provide number to choose table");
-        Console.WriteLine("1 - FrontCards");
-        Console.WriteLine("2 - BackCards");
-        int table_choose = GetNumber();
-        string table_name = "";
-        if (table_choose == 1) { table_name = "FrontCards"; }
-        else if (table_choose == 2) { table_name = "BackCards"; }
-        if (table_choose != 1 && table_choose != 2)
-        {
-            bool flag = false;
-            Console.WriteLine("Provide number 1 or 2");
-            while (!flag)
-            {
-                table_choose = GetNumber();
-                if (table_choose == 1) { table_name = "FrontCards"; flag = true; }
-                else if (table_choose == 2) { table_name = "BackCards"; flag = true; }
-                else Console.WriteLine("Provide number 1 or 2");
-            }
-        }
-        Console.WriteLine($"Type what Name you want to add to {table_name} table");
-        string card_value = Console.ReadLine();
+    { 
+        Console.WriteLine("Insert version of word you wanna add.");
+        Console.WriteLine(" (Next, you will provide translation to back of the card)");
+        string front_card_value = Console.ReadLine();
         SqlConnection conn = new SqlConnection(connection_string);
         conn.Open();
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = $"INSERT INTO FrontCards(Name) VALUES('{front_card_value}'); SELECT SCOPE_IDENTITY();"; //id incr, name front_card
+        int front_id = Convert.ToInt32(cmd.ExecuteScalar()); // id of front_card
+        Console.Clear();
+        Console.WriteLine("Insert TRANSLATION of word that you added previously {0}", front_card_value);
+        string back_card_value = Console.ReadLine();
         SqlCommand command = conn.CreateCommand();
-        command.CommandText = $"INSERT INTO {table_name}(Name) VALUES('{card_value}')";
+        command.CommandText = $"INSERT INTO BackCards(Name, FrontId) VALUES('{back_card_value}', '{front_id}')";
         command.ExecuteNonQuery();
         conn.Close();
     }
