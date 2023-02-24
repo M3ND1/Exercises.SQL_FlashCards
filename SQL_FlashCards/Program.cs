@@ -1,4 +1,6 @@
 ﻿using System.Data.SqlClient;
+using ConsoleTableExt;
+using SQL_FlashCards;
 
 class Program
 {
@@ -38,6 +40,7 @@ class Program
                     Delete(); //Delete Id decrementation ex. From 2 to 1 --> having 1-10 deleteing 5 and 1-9
                     break;
                 case 5:
+                    Console.WriteLine("Provide 'FrontCards' or 'BackCards'.");
                     string sol = Console.ReadLine();
                     GetTableByName(sol);
                     System.Threading.Thread.Sleep(3000);
@@ -55,15 +58,28 @@ class Program
         SqlDataReader reader = null;
 
         SqlCommand command = conn.CreateCommand();
-        command.CommandText = $"SELECT FrontCards.Name AS FrontName, BackCards.Name AS BackName FROM FrontCards JOIN BackCards ON FrontCards.FrontId = BackCards.FrontId";
+        command.CommandText = $"SELECT FrontCards.FrontId, FrontCards.Name AS FrontName, " +
+            $"BackCards.Name AS BackName FROM FrontCards " +
+            $"JOIN BackCards ON FrontCards.FrontId = BackCards.FrontId";
         reader = command.ExecuteReader();
+        List<Card> cards = new(); //Hej, Hello
         while (reader.Read())
         {//maybe select with both tables with Id and name? more readable
-            Console.WriteLine(String.Format("{0} {1}", reader["FrontName"].ToString(), reader["BackName"].ToString()));
+            cards.Add(
+                new Card
+                {
+                    Id = reader.GetInt32(0),
+                    Front_Name = reader.GetString(1),
+                    Back_Name = reader.GetString(2)
+                }
+            );
+            //Console.WriteLine(String.Format("{0} {1}", reader["FrontName"].ToString(), reader["BackName"].ToString()));
         }
+        DisplayLibrary(cards);
         reader.Close();
         conn.Close();
         System.Threading.Thread.Sleep(2000);
+
     }
     private static void Insert()
     { 
@@ -146,24 +162,6 @@ class Program
         command.ExecuteNonQuery();
         conn.Close();
     }
-    static string GetString()
-    {
-        bool flag = false;
-        string sol = "";
-        while(!flag)
-        {
-            try
-            {
-                sol = Console.ReadLine();
-                flag = true;
-            }
-            catch(FormatException) 
-            {
-                Console.WriteLine("Provide text.");
-            }
-        }
-        return sol;   
-    }
     static int GetNumber()
     {
         bool flag = false;
@@ -191,15 +189,46 @@ class Program
         SqlCommand id_command = conn.CreateCommand();
         id_command.CommandText = $"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{table}' AND COLUMN_NAME LIKE '%Id%'";
         string column_id = (string)id_command.ExecuteScalar(); //FrontId or BackId
-        //========
-        SqlCommand command = conn.CreateCommand();
-        command.CommandText = $"SELECT {column_id}, Name FROM {table}";
-        reader = command.ExecuteReader();
-        while(reader.Read())
+                                                               //========
+        List<(int, string)> list = new List<(int, string)>();
+
+        if (table == "FrontCards")
         {
-            Console.WriteLine(String.Format("Id: {0} Name: {1}", reader[column_id].ToString(), reader["Name"].ToString()));
+            SqlCommand command = conn.CreateCommand();
+            command.CommandText = $"SELECT {column_id}, Name FROM {table} ORDER BY {column_id} ASC";
+            reader = command.ExecuteReader();
+            while(reader.Read())
+            {
+                int id = reader.GetInt32(0);
+                string front_name = reader.GetString(1);
+                list.Add((id, front_name));
+            }
+            reader.Close();
+        } else if(table == "BackCards")
+        {
+            SqlCommand command = conn.CreateCommand();
+            command.CommandText = $"SELECT {column_id}, Name, FrontId FROM {table} ORDER BY {column_id} ASC";
+            reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                int id = reader.GetInt32(0);
+                string front_name = reader.GetString(1);
+                list.Add((id, front_name));
+            }
+            reader.Close();
         }
-        reader.Close();
         conn.Close();
+
+        foreach (var l in list)
+        {
+            Console.WriteLine("{0} : {1}",table, l.ToString());
+        }
+    }
+    static void DisplayLibrary(List<SQL_FlashCards.Card> cards)
+    {
+        var rows = new List<object[]>();
+        for(int i=0;i<cards.Count;i++) rows.Add(new object[] { cards[i].Id, cards[i].Front_Name, cards[i].Back_Name});
+        ConsoleTableBuilder.From(rows).WithColumn("Card Id", "Front Card", "Back Card")
+            .WithFormat(ConsoleTableBuilderFormat.MarkDown).ExportAndWriteLine();
     }
 }
